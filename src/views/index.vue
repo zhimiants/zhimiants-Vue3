@@ -1012,7 +1012,7 @@
               style="width:100%"
             />
             <span style="display: inline-block; height: 30px; line-height: 30px"
-              >你可以请作者喝杯咖啡表示鼓励</span
+              >你可以请作者喝杯咖啡</span
             >
           </div>
         </el-card>
