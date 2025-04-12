@@ -8,6 +8,13 @@
       <template v-if="appStore.device !== 'mobile'">
         <header-search id="header-search" class="right-menu-item" />
 
+        <el-tooltip content="通知公告" effect="dark" placement="bottom">
+          <div class="right-menu-item hover-effect" @click="showNotice">
+            <svg-icon icon-class="message" />
+            <span v-if="hasUnreadNotice" class="notice-badge"></span>
+          </div>
+        </el-tooltip>
+
         <el-tooltip content="源码地址" effect="dark" placement="bottom">
           <ruo-yi-git id="ruoyi-git" class="right-menu-item hover-effect" />
         </el-tooltip>
@@ -56,6 +63,7 @@
 
 <script setup>
 import { ElMessageBox } from 'element-plus'
+import { ref, onMounted } from 'vue'
 import Breadcrumb from '@/components/Breadcrumb'
 import TopNav from '@/components/TopNav'
 import Hamburger from '@/components/Hamburger'
@@ -67,10 +75,13 @@ import RuoYiDoc from '@/components/RuoYi/Doc'
 import useAppStore from '@/store/modules/app'
 import useUserStore from '@/store/modules/user'
 import useSettingsStore from '@/store/modules/settings'
+import { listNotice } from '@/api/system/notice'
+import mitt from '@/utils/mitt'
 
 const appStore = useAppStore()
 const userStore = useUserStore()
 const settingsStore = useSettingsStore()
+const hasUnreadNotice = ref(false)
 
 function toggleSideBar() {
   appStore.toggleSideBar()
@@ -109,6 +120,50 @@ function setLayout() {
 function toggleTheme() {
   settingsStore.toggleTheme()
 }
+
+// 检查是否有未读通知
+const checkUnreadNotice = async () => {
+  try {
+    const response = await listNotice({
+      pageNum: 1,
+      pageSize: 10,
+      status: '0' // 查询正常状态的公告
+    })
+    
+    if (response.rows && response.rows.length > 0) {
+      // 检查是否已经显示过这条公告
+      const userId = userStore.id
+      const storageKey = `notice_read_${userId}`
+      const noticeRecord = JSON.parse(localStorage.getItem(storageKey) || '{}')
+      
+      // 检查是否有未读公告
+      const hasUnread = response.rows.some(notice => !noticeRecord[notice.noticeId])
+      hasUnreadNotice.value = hasUnread
+    } else {
+      hasUnreadNotice.value = false
+    }
+  } catch (error) {
+    console.error('获取公告失败:', error)
+    hasUnreadNotice.value = false
+  }
+}
+
+// 显示通知公告
+const showNotice = () => {
+  // 发布事件，由布局组件中的通知公告组件监听并处理
+  mitt.emit('show-notice')
+  
+  // 稍后重新检查未读状态
+  setTimeout(() => {
+    checkUnreadNotice()
+  }, 500)
+}
+
+onMounted(() => {
+  if (userStore.id) {
+    checkUnreadNotice()
+  }
+})
 </script>
 
 <style lang='scss' scoped>
@@ -163,6 +218,7 @@ function toggleTheme() {
       font-size: 18px;
       color: var(--navbar-text);
       vertical-align: text-bottom;
+      position: relative;
 
       &.hover-effect {
         cursor: pointer;
@@ -184,6 +240,16 @@ function toggleTheme() {
             transform: scale(1.15);
           }
         }
+      }
+
+      .notice-badge {
+        position: absolute;
+        top: 14px;
+        right: 4px;
+        width: 8px;
+        height: 8px;
+        border-radius: 4px;
+        background-color: #f56c6c;
       }
     }
 

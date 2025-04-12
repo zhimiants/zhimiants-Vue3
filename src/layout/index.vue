@@ -9,18 +9,23 @@
       </div>
       <app-main />
       <settings ref="settingRef" />
+      <notice-announcement ref="noticeRef" />
     </div>
   </div>
 </template>
 
 <script setup>
 import { useWindowSize } from '@vueuse/core'
+import { onUnmounted } from 'vue'
 import Sidebar from './components/Sidebar/index.vue'
 import { AppMain, Navbar, Settings, TagsView } from './components'
 import defaultSettings from '@/settings'
+import NoticeAnnouncement from '@/components/NoticeAnnouncement/index.vue'
+import mitt from '@/utils/mitt'
 
 import useAppStore from '@/store/modules/app'
 import useSettingsStore from '@/store/modules/settings'
+import useUserStore from '@/store/modules/user'
 
 const settingsStore = useSettingsStore()
 const theme = computed(() => settingsStore.theme);
@@ -63,6 +68,28 @@ const settingRef = ref(null);
 function setLayout() {
   settingRef.value.openSetting();
 }
+
+const noticeRef = ref(null);
+const userStore = useUserStore();
+watch(() => userStore.id, (newVal) => {
+  if (newVal && noticeRef.value) {
+    setTimeout(() => {
+      noticeRef.value.showUnreadNotices();
+    }, 500);
+  }
+}, { immediate: true });
+
+// 监听事件总线上的消息
+mitt.on('show-notice', () => {
+  if (noticeRef.value) {
+    noticeRef.value.showUnreadNotices();
+  }
+});
+
+// 组件卸载前移除事件监听
+onUnmounted(() => {
+  mitt.off('show-notice');
+});
 </script>
 
 <style lang="scss" scoped>
